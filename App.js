@@ -1,20 +1,75 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+// App.js
+import React, { useEffect } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import Dashboard from './screens/Dashboard';
+import StockEntry from './screens/StockEntry';
+import DispenseScreen from "./screens/DispenseScreen";
+import ExportSelect from "./screens/ExportSelect";
+import ExportInventory from "./screens/ExportInventory";
+import ExportDispensed from "./screens/ExportDispensed";
+import Login from './screens/Login'; // ✅ imported
+import { initDB } from './db';
+import { requestNotificationPermissions } from './notifications';
+import { LogBox } from 'react-native';
+
+LogBox.ignoreAllLogs(true);
+
+const Stack = createNativeStackNavigator();
 
 export default function App() {
+  useEffect(() => {
+    (async () => {
+      try {
+        await initDB();
+        await requestNotificationPermissions();
+      } catch (err) {
+        console.warn('Init error', err);
+      }
+    })();
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Login">
+        <Stack.Screen
+          name="Login"
+          component={Login}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Dashboard"
+          component={Dashboard}
+          options={{ title: 'Dashboard' }}
+        />
+        <Stack.Screen
+          name="StockEntry"
+          component={StockEntry}
+          options={{ title: 'Add / Edit Stock' }}
+        />
+        <Stack.Screen
+          name="DispenseScreen"
+          component={DispenseScreen}
+          options={{ title: 'Dispense Medicine' }}
+        />
+
+        <Stack.Screen
+          name="ExportScreen"
+          component={ExportSelect}
+          options={{ title: 'Export Options' }}
+        />
+
+        <Stack.Screen
+          name="ExportInventory"
+          component={ExportInventory}
+          options={{ title: "Export Inventory" }}
+        />
+        <Stack.Screen
+          name="ExportDispensed"
+          component={ExportDispensed}
+          options={{ title: "Export Dispensed" }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
