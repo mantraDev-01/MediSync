@@ -120,7 +120,7 @@ export default function Dashboard({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.header}>📊 MediSync Inventory Dashboard</Text>
+      
 
       {/* ===== Summary Section ===== */}
       <View style={styles.summaryContainer}>

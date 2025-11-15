@@ -1,6 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { Alert } from "react-native";
+import * as SQLite from "expo-sqlite";
 
 /**
  * Helper to create and write a CSV file
@@ -16,7 +17,19 @@ async function createCsvFile(filename, content) {
 }
 
 /**
+ * Ensure the SQLite database is open
+ */
+let db;
+async function ensureDB() {
+  if (!db) {
+    db = await SQLite.openDatabaseAsync("medisync.db");
+  }
+  return db;
+}
+
+/**
  * 🧾 Export current inventory as CSV
+ * Columns: ID,Med Name,Used Quantity (This Month),Remaining Quantity,Date Replenish,Expiry Date
  */
 export async function exportStocksToCSV(stocks) {
   if (!stocks || stocks.length === 0) {
@@ -25,16 +38,39 @@ export async function exportStocksToCSV(stocks) {
   }
 
   try {
-    const header =
-      "ID,Name,Quantity,Low Threshold,Expiry Date,Date Added\n";
-    const rows = stocks
-      .map(
-        (s) =>
-          `${s.id},"${s.name}",${s.quantity},${s.low_threshold},"${s.expiry_date || ""}","${s.date_added || ""}"`
-      )
-      .join("\n");
+    const database = await ensureDB();
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+      .toISOString()
+      .slice(0, 10);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      .toISOString()
+      .slice(0, 10);
 
-    const csv = `${header}${rows}`;
+    const header =
+      "ID,Med Name,Used Quantity (This Month),Remaining Quantity,Date Replenish,Expiry Date\n";
+
+    const rows = [];
+    for (const s of stocks) {
+      const usedRow = await database.getAllAsync(
+        `SELECT IFNULL(SUM(quantity), 0) AS used
+         FROM dispense
+         WHERE med_name = ? AND date_dispensed BETWEEN ? AND ?;`,
+        [s.name, firstDay, lastDay]
+      );
+
+      const usedQty = usedRow?.[0]?.used ?? 0;
+      const medName = (s.name || "").replace(/"/g, '""');
+      const remaining = s.quantity ?? "";
+      const replenish = s.date_added || "";
+      const expiry = s.expiry_date || "";
+
+      rows.push(
+        `${s.id},"${medName}",${usedQty},${remaining},"${replenish}","${expiry}"`
+      );
+    }
+
+    const csv = `${header}${rows.join("\n")}`;
     const fileUri = await createCsvFile(
       `medisync_inventory_${Date.now()}.csv`,
       csv

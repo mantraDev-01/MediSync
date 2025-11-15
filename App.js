@@ -1,17 +1,20 @@
 // App.js
-import React, { useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import Dashboard from './screens/Dashboard';
-import StockEntry from './screens/StockEntry';
+import React, { useEffect } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import Dashboard from "./screens/Dashboard";
+import StockEntry from "./screens/StockEntry";
 import DispenseScreen from "./screens/DispenseScreen";
 import ExportSelect from "./screens/ExportSelect";
 import ExportInventory from "./screens/ExportInventory";
 import ExportDispensed from "./screens/ExportDispensed";
-import Login from './screens/Login'; // ✅ imported
-import { initDB } from './db';
-import { requestNotificationPermissions } from './notifications';
-import { LogBox } from 'react-native';
+import Login from "./screens/Login";
+import { initDB } from "./db";
+import {
+  requestNotificationPermissions,
+  scheduleDailyInventoryCheckFromDB,
+} from "./notifications";
+import { LogBox } from "react-native";
 
 LogBox.ignoreAllLogs(true);
 
@@ -21,10 +24,20 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
+        // Initialize local DB
         await initDB();
-        await requestNotificationPermissions();
+
+        // Request permission for notifications
+        const granted = await requestNotificationPermissions();
+
+        // If granted, schedule the daily check
+        if (granted) {
+          await scheduleDailyInventoryCheckFromDB();
+        } else {
+          console.warn("Notification permission not granted.");
+        }
       } catch (err) {
-        console.warn('Init error', err);
+        console.warn("Init error:", err);
       }
     })();
   }, []);
@@ -40,25 +53,23 @@ export default function App() {
         <Stack.Screen
           name="Dashboard"
           component={Dashboard}
-          options={{ title: 'Dashboard' }}
+          options={{ title: "Dashboard" }}
         />
         <Stack.Screen
           name="StockEntry"
           component={StockEntry}
-          options={{ title: 'Add / Edit Stock' }}
+          options={{ title: "Add / Edit Stock" }}
         />
         <Stack.Screen
           name="DispenseScreen"
           component={DispenseScreen}
-          options={{ title: 'Dispense Medicine' }}
+          options={{ title: "Dispense Medicine" }}
         />
-
         <Stack.Screen
           name="ExportScreen"
           component={ExportSelect}
-          options={{ title: 'Export Options' }}
+          options={{ title: "Export Options" }}
         />
-
         <Stack.Screen
           name="ExportInventory"
           component={ExportInventory}
