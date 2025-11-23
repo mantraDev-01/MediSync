@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { addStock, updateStock } from "../db";
+import { addStock, updateStock, getStockByNameAndExpiry } from "../db"; // Added getStockByNameAndExpiry
 import {
   scheduleNotificationForExpiry,
   scheduleNotificationForLowStock,
@@ -61,10 +61,16 @@ export default function StockEntry({ navigation, route }) {
     }
 
     const qty = parseInt(quantity || "0", 10);
+    if (qty <= 0) {
+      Alert.alert("Validation", "Quantity must be greater than 0.");
+      return;
+    }
+
     const low = parseInt(lowThreshold || "10", 10);
 
     try {
       if (item) {
+        // Editing existing item - update as before
         await updateStock(item.id, {
           name: name.trim(),
           quantity: qty,
@@ -73,32 +79,41 @@ export default function StockEntry({ navigation, route }) {
         });
         Alert.alert("Updated", "Stock details updated successfully.");
       } else {
-        const id = await addStock({
-          name: name.trim(),
-          quantity: qty,
-          low_threshold: low,
-          expiry_date: expiry || null,
-        });
+        // Adding new item - check for existing stock
+        const existingStock = await getStockByNameAndExpiry(name.trim(), expiry || null);
 
-        let notifLowId = null;
-        let notifExpiryId = null;
+        if (existingStock) {
+          // Same name and expiry exists - add quantity to existing stock
+          const newQuantity = existingStock.quantity + qty;
+          await updateStock(existingStock.id, { quantity: newQuantity });
+          Alert.alert("Updated", `Quantity added to existing stock. New total: ${newQuantity}.`);
+        } else {
+          // No match - add new stock item
+          const id = await addStock({
+            name: name.trim(),
+            quantity: qty,
+            low_threshold: low,
+            expiry_date: expiry || null,
+          });
 
-        if (qty <= low)
-          notifLowId = await scheduleNotificationForLowStock(id, name, qty);
-        if (expiry)
-          notifExpiryId = await scheduleNotificationForExpiry(
-            id,
-            name,
-            expiry,
-            30
-          );
+          // Schedule notifications for new item
+          let notifLowId = null;
+          let notifExpiryId = null;
 
-        await updateStock(id, {
-          notif_low_id: notifLowId,
-          notif_expiry_id: notifExpiryId,
-        });
+          if (qty <= low) {
+            notifLowId = await scheduleNotificationForLowStock(id, name.trim(), qty);
+          }
+          if (expiry) {
+            notifExpiryId = await scheduleNotificationForExpiry(id, name.trim(), expiry, 30);
+          }
 
-        Alert.alert("Saved", "Stock saved and notifications scheduled.");
+          await updateStock(id, {
+            notif_low_id: notifLowId,
+            notif_expiry_id: notifExpiryId,
+          });
+
+          Alert.alert("Saved", "New stock added.");
+        }
       }
 
       navigation.goBack();

@@ -8,8 +8,8 @@ export default function Login({ navigation }) {
 
   // Hardcoded single nurse account
   const nurseAccount = {
-    username: 'nurse',
-    password: '1234',
+    username: 'SNHSNurse',
+    password: '@SNHS2025',
   };
 
   const handleLogin = () => {

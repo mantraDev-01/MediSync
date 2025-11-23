@@ -35,17 +35,22 @@ export default function Dashboard({ navigation }) {
         all.reduce((sum, it) => sum + (parseInt(it.quantity || 0, 10)), 0)
       );
 
+      // Normalize to midnight today for date comparisons (ignore time)
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Midnight today
+      const cutoff = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from today
+
       const low = all.filter(
         (i) => parseInt(i.quantity || 0, 10) <= parseInt(i.low_threshold || 10, 10)
       );
       const expiring = all.filter((i) => {
         if (!i.expiry_date) return false;
-        const daysLeft =
-          (new Date(i.expiry_date) - new Date()) / (1000 * 60 * 60 * 24);
-        return daysLeft > 0 && daysLeft <= 30;
+        const expDate = new Date(i.expiry_date);
+        // Expiring soon: Expiry is after today but within 30 days
+        return expDate >= today && expDate <= cutoff;
       });
       const expired = all.filter(
-        (i) => i.expiry_date && new Date(i.expiry_date) < new Date()
+        (i) => i.expiry_date && new Date(i.expiry_date) < today // Expired: Strictly before today
       );
 
       setLowItems(low);
@@ -75,17 +80,18 @@ export default function Dashboard({ navigation }) {
     ]);
   }
 
-  // Helper to compute item status
+  // Helper to compute item status (updated for date normalization)
   const getStatus = (item) => {
     const qty = parseInt(item.quantity || 0, 10);
     const threshold = parseInt(item.low_threshold || 10, 10);
     const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Midnight today
     const expDate = item.expiry_date ? new Date(item.expiry_date) : null;
 
-    if (expDate && expDate < now) return "⚫ Expired";
+    if (expDate && expDate < today) return "⚫ Expired"; // Strictly before today
     if (expDate) {
-      const daysLeft = (expDate - now) / (1000 * 60 * 60 * 24);
-      if (daysLeft <= 30 && daysLeft > 0) return "🔴 Expiring Soon";
+      const daysLeft = (expDate - today) / (1000 * 60 * 60 * 24);
+      if (daysLeft <= 30 && daysLeft > 0) return "🔴 Expiring Soon"; // Within 30 days, not including today
     }
     if (qty <= threshold) return "🟠 Low Stock";
     return "🟢 OK";
@@ -119,8 +125,6 @@ export default function Dashboard({ navigation }) {
           <Text style={styles.navButtonText}>Export</Text>
         </TouchableOpacity>
       </View>
-
-      
 
       {/* ===== Summary Section ===== */}
       <View style={styles.summaryContainer}>

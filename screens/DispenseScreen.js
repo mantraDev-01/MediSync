@@ -232,7 +232,7 @@ export default function DispenseScreen() {
       </TouchableOpacity>
 
       {/* === Dispensed Table === */}
-      <View style={{ marginTop: 30 }}>
+      <View style={{ marginTop: 40, marginBottom: 100 }}>
         <View style={styles.filterHeader}>
           <Text style={styles.sectionTitle}>📜 Dispensed Records</Text>
           <TouchableOpacity style={styles.filterButton} onPress={showFilterPicker}>

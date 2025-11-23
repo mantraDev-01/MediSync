@@ -1,19 +1,47 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import * as SQLite from "expo-sqlite";
 
 /**
- * Helper to create and write a CSV file
+ * Helper to save a CSV file, with user selection on Android
  */
-async function createCsvFile(filename, content) {
-  const fileUri = `${FileSystem.documentDirectory}${filename}`;
-
-  await FileSystem.writeAsStringAsync(fileUri, content, {
-    encoding: FileSystem.EncodingType.UTF8,
-  });
-
-  return fileUri;
+async function saveFileWithSelection(filename, content) {
+  if (Platform.OS === 'android') {
+    // On Android, prompt user to select a directory and save there
+    try {
+      const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      if (permissions.granted) {
+        const directoryUri = permissions.directoryUri;
+        const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(directoryUri, filename, 'text/csv');
+        await FileSystem.writeAsStringAsync(fileUri, content, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        Alert.alert("Exported", `File saved to selected directory.`);
+        return fileUri;
+      } else {
+        throw new Error("Permission to access directory denied.");
+      }
+    } catch (error) {
+      throw new Error(`Failed to save file: ${error.message}`);
+    }
+  } else {
+    // On iOS, save to app directory and share
+    const fileUri = `${FileSystem.documentDirectory}${filename}`;
+    await FileSystem.writeAsStringAsync(fileUri, content, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(fileUri, {
+        dialogTitle: "Share CSV",
+        mimeType: "text/csv",
+        UTI: "public.comma-separated-values-text",
+      });
+    } else {
+      Alert.alert("Exported", `File saved at:\n${fileUri}`);
+    }
+    return fileUri;
+  }
 }
 
 /**
@@ -71,20 +99,10 @@ export async function exportStocksToCSV(stocks) {
     }
 
     const csv = `${header}${rows.join("\n")}`;
-    const fileUri = await createCsvFile(
+    const fileUri = await saveFileWithSelection(
       `medisync_inventory_${Date.now()}.csv`,
       csv
     );
-
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri, {
-        dialogTitle: "Share Inventory CSV",
-        mimeType: "text/csv",
-        UTI: "public.comma-separated-values-text",
-      });
-    } else {
-      Alert.alert("Exported", `File saved at:\n${fileUri}`);
-    }
 
     return fileUri;
   } catch (error) {
@@ -113,20 +131,10 @@ export async function exportDispensedToCSV(dispensedList) {
       .join("\n");
 
     const csv = `${header}${rows}`;
-    const fileUri = await createCsvFile(
+    const fileUri = await saveFileWithSelection(
       `medisync_dispensed_${Date.now()}.csv`,
       csv
     );
-
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri, {
-        dialogTitle: "Share Dispensed CSV",
-        mimeType: "text/csv",
-        UTI: "public.comma-separated-values-text",
-      });
-    } else {
-      Alert.alert("Exported", `File saved at:\n${fileUri}`);
-    }
 
     return fileUri;
   } catch (error) {

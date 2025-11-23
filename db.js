@@ -222,3 +222,12 @@ export async function getDispensedByMonth() {
   return result;
 }
 
+export async function getStockByNameAndExpiry(name, expiry_date) {
+  const database = await ensureDB();
+  const result = await database.getAllAsync(
+    `SELECT * FROM stocks WHERE name = ? AND (expiry_date = ? OR (expiry_date IS NULL AND ? IS NULL)) LIMIT 1;`,
+    [name, expiry_date, expiry_date]
+  );
+  return result?.[0] || null; // Return the stock if found, else null
+}
+
