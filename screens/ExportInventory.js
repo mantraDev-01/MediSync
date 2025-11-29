@@ -1,5 +1,13 @@
+// screens/ExportInventory.js
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { exportStocksToCSV } from "../utils/exportCsv";
 import { getAllStocks } from "../db";
 
@@ -34,8 +42,8 @@ export default function ExportInventory({ navigation }) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text>Loading Inventory...</Text>
+        <ActivityIndicator size="large" color="#35A9FF" />
+        <Text style={styles.loadingText}>Loading Inventory...</Text>
       </View>
     );
   }
@@ -48,36 +56,71 @@ export default function ExportInventory({ navigation }) {
         <Text style={styles.buttonText}>📦 Export to CSV</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: "#ccc" }]}
-        onPress={() => navigation.goBack()}
-      >
-        <Text style={styles.buttonText}>Cancel</Text>
+      <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
+        <Text style={styles.cancelText}>Cancel</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
+const MEDI_BG = "#E6F9F7";
+const MEDI_TEXT = "#1A3C47";
+const MEDI_PRIMARY = "#35A9FF";
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f2f2f2",
+    backgroundColor: MEDI_BG,
     padding: 20,
+    justifyContent: "center",
   },
+
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: MEDI_BG,
   },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 30 },
+
+  loadingText: {
+    marginTop: 10,
+    color: MEDI_TEXT,
+  },
+
+  title: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: MEDI_TEXT,
+    textAlign: "center",
+    marginBottom: 30,
+  },
+
   button: {
-    backgroundColor: "#007AFF",
-    padding: 15,
-    borderRadius: 10,
-    width: "80%",
+    backgroundColor: MEDI_PRIMARY,
+    padding: 16,
+    borderRadius: 12,
     marginBottom: 15,
   },
-  buttonText: { color: "white", textAlign: "center", fontSize: 16 },
+
+  buttonText: {
+    color: "#FFF",
+    fontSize: 16,
+    textAlign: "center",
+    fontWeight: "600",
+  },
+
+  cancelButton: {
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D3F0EA",
+  },
+
+  cancelText: {
+    textAlign: "center",
+    color: "#FF3B30",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });

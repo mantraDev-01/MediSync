@@ -231,3 +231,11 @@ export async function getStockByNameAndExpiry(name, expiry_date) {
   return result?.[0] || null; // Return the stock if found, else null
 }
 
+// ✅ Get dispensed medicines by date range
+export async function getDispensedByDateRange(startDate, endDate) {
+  const database = await ensureDB();
+  return await database.getAllAsync(
+    `SELECT * FROM dispense WHERE date_dispensed BETWEEN ? AND ? ORDER BY date_dispensed DESC;`,
+    [startDate, endDate]
+  );
+}

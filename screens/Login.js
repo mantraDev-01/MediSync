@@ -50,36 +50,42 @@ export default function Login({ navigation }) {
   );
 }
 
+// Updated styles to match Dashboard theme
+const MEDI_PRIMARY = "#35A9FF";      // Aqua Blue
+const MEDI_SECONDARY = "#30C9B0";    // Teal Green
+const MEDI_BG = "#E6F9F7";           // Soft Mint
+const MEDI_TEXT = "#1A3C47";         // Deep bluish text
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: MEDI_BG,  // Match dashboard background
   },
   title: {
     fontSize: 32,
     fontWeight: '700',
     marginBottom: 8,
-    color: '#007AFF',
+    color: MEDI_PRIMARY,  // Match primary color
   },
   subtitle: {
     fontSize: 16,
     marginBottom: 24,
-    color: '#444',
+    color: MEDI_TEXT,  // Match text color
   },
   input: {
     width: '100%',
-    backgroundColor: '#fff',
+    backgroundColor: '#fff',  // White background for inputs
     padding: 12,
     marginBottom: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#D3F0EA',  // Light border like dashboard cards
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: MEDI_SECONDARY,  // Match secondary color
     paddingVertical: 12,
     paddingHorizontal: 32,
     borderRadius: 8,
@@ -93,6 +99,6 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 16,
     fontSize: 12,
-    color: '#666',
+    color: MEDI_TEXT,  // Match text color
   },
 });

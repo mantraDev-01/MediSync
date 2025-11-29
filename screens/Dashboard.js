@@ -11,6 +11,7 @@ import {
 import { getAllStocks, deleteStock } from "../db";
 import { useIsFocused } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import { testScheduleNotification } from "../notifications";
 
 export default function Dashboard({ navigation }) {
   const [stocks, setStocks] = useState([]);
@@ -100,31 +101,7 @@ export default function Dashboard({ navigation }) {
   return (
     <ScrollView style={styles.container}>
       {/* ===== Top Navigation Buttons ===== */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          style={[styles.navButton, { backgroundColor: "#007AFF" }]}
-          onPress={() => navigation.navigate("StockEntry")}
-        >
-          <Ionicons name="add-circle-outline" size={18} color="#fff" />
-          <Text style={styles.navButtonText}>Add Stock</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.navButton, { backgroundColor: "#FF9500" }]}
-          onPress={() => navigation.navigate("DispenseScreen")}
-        >
-          <Ionicons name="remove-circle-outline" size={18} color="#fff" />
-          <Text style={styles.navButtonText}>Dispense</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.navButton, { backgroundColor: "#34C759" }]}
-          onPress={() => navigation.navigate("ExportScreen")}
-        >
-          <Ionicons name="download-outline" size={18} color="#fff" />
-          <Text style={styles.navButtonText}>Export</Text>
-        </TouchableOpacity>
-      </View>
+      
 
       {/* ===== Summary Section ===== */}
       <View style={styles.summaryContainer}>
@@ -183,6 +160,8 @@ export default function Dashboard({ navigation }) {
         </View>
       </View>
 
+     
+
       {/* ===== Inventory Table ===== */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>💊 Inventory List</Text>
@@ -240,73 +219,98 @@ export default function Dashboard({ navigation }) {
   );
 }
 
+const MEDI_PRIMARY = "#35A9FF";      // Aqua Blue
+const MEDI_SECONDARY = "#30C9B0";    // Teal Green
+const MEDI_BG = "#E6F9F7";           // Soft Mint
+const MEDI_TEXT = "#1A3C47";         // Deep bluish text
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB", padding: 16 },
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 14,
+  container: { 
+    flex: 1, 
+    backgroundColor: MEDI_BG, 
+    padding: 16 
   },
-  navButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: 4,
-    paddingVertical: 10,
-    borderRadius: 8,
+
+  summaryContainer: { 
+    marginBottom: 16, 
+    marginTop: 30 
   },
-  navButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-    marginLeft: 5,
-    fontSize: 14,
+
+  row: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    marginTop: 10 
   },
-  header: {
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 12,
-    color: "#1E1E1E",
-    textAlign: "center",
-  },
-  summaryContainer: { marginBottom: 16 },
-  row: { flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
+
   summaryCard: {
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
+    backgroundColor: "#FFFFFF",
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 3,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: "#D3F0EA",
   },
-  cardTitle: { fontSize: 13, color: "#555", marginTop: 6 },
-  cardValue: { fontSize: 20, fontWeight: "700", marginTop: 2, color: "#111" },
+
+  cardTitle: { 
+    fontSize: 13, 
+    color: MEDI_TEXT, 
+    marginTop: 6 
+  },
+
+  cardValue: { 
+    fontSize: 20, 
+    fontWeight: "700", 
+    marginTop: 2, 
+    color: MEDI_SECONDARY 
+  },
+
   section: {
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 14,
     marginTop: 14,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: "#D3F0EA",
   },
-  sectionTitle: { fontSize: 15, fontWeight: "600", color: "#222" },
+
+  sectionTitle: { 
+    fontSize: 15, 
+    fontWeight: "700", 
+    color: MEDI_TEXT 
+  },
+
   table: {
     marginTop: 10,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: "#CFEDEA",
     borderRadius: 8,
     overflow: "hidden",
     minWidth: 650,
   },
+  
   tableRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "#D8EFEC",
     alignItems: "center",
     paddingVertical: 8,
   },
-  tableHeader: { backgroundColor: "#F2F3F7" },
-  tableCell: { fontSize: 13, color: "#333", paddingHorizontal: 8 },
+
+  tableHeader: { 
+    backgroundColor: "#DDF4F1" 
+  },
+
+  tableCell: { 
+    fontSize: 13, 
+    color: MEDI_TEXT, 
+    paddingHorizontal: 8 
+  },
+
   colName: { width: 160 },
   colQty: { width: 60, textAlign: "center" },
   colExp: { width: 120, textAlign: "center" },
@@ -318,6 +322,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  refreshLink: { marginTop: 18, alignItems: "center" },
-  refreshText: { color: "#007AFF", fontWeight: "500" },
+
+  refreshLink: { 
+    marginTop: 18, 
+    alignItems: "center" 
+  },
+
+  refreshText: { 
+    color: MEDI_PRIMARY, 
+    fontWeight: "600" 
+  },
 });
+

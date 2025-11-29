@@ -1,114 +1,127 @@
 import * as Notifications from "expo-notifications";
-import { Alert } from "react-native";
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  getLowStockItems,
+  getExpiringSoonItems,
+  getExpiredItems,
+} from "./db";
 
-// Configure how notifications behave when app is foreground
+/* --------------------------------------------
+   Notification behavior (foreground/background)
+---------------------------------------------*/
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
     shouldSetBadge: false,
   }),
 });
 
-export async function requestNotificationPermissions() {
-  const { status } = await Notifications.requestPermissionsAsync();
-  if (status !== "granted") {
-    Alert.alert(
-      "Permissions Required",
-      "Notifications are needed for daily reminders. Please enable them in settings."
+/* --------------------------------------------
+   Android notification channel
+---------------------------------------------*/
+export async function createNotificationChannel() {
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "Inventory Alerts",
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      sound: "default",
+    });
+  }
+}
+
+/* --------------------------------------------
+   🔐 Check daily + 8AM rule
+---------------------------------------------*/
+async function canNotifyNow() {
+  const now = new Date();
+
+  // ❌ Before 8 AM → block
+  if (now.getHours() < 8) return false;
+
+  const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  const last = await AsyncStorage.getItem("LAST_INVENTORY_NOTIFY");
+
+  // ❌ Already notified today
+  if (last === today) return false;
+
+  return true;
+}
+
+async function markNotifiedToday() {
+  const today = new Date().toISOString().slice(0, 10);
+  await AsyncStorage.setItem("LAST_INVENTORY_NOTIFY", today);
+}
+
+/* --------------------------------------------
+   ✅ MAIN INVENTORY CHECK (CALL ON APP OPEN)
+---------------------------------------------*/
+export async function runInventoryCheck() {
+  console.log("runInventoryCheck called");  // Debug: Confirm function is invoked
+
+  const allowed = await canNotifyNow();
+  console.log("Can notify now?", allowed);  // Debug: Check time/daily limit
+  if (!allowed) return;
+
+  await createNotificationChannel();
+
+  const perm = await Notifications.requestPermissionsAsync();
+  console.log("Permissions status:", perm.status);  // Debug: Check permissions
+  if (perm.status !== "granted") return;
+
+  // ✅ Current DB state
+  const low = await getLowStockItems();
+  const expiring = await getExpiringSoonItems(30);
+  const expired = await getExpiredItems();
+
+  console.log("Low stock items:", low.length, "Expiring items:", expiring.length, "Expired items:", expired.length);  // Debug: Check data
+
+  // ✅ If nothing to notify, lock the day
+  if (!low.length && !expiring.length && !expired.length) {
+    await markNotifiedToday();
+    return;
+  }
+
+  /* --------------------------------------------
+     ✅ Build message WITH MED NAMES
+  ---------------------------------------------*/
+  let messageParts = [];
+
+  if (low.length) {
+    messageParts.push(
+      `🟠 LOW STOCK:\n${low.map(i => `• ${i.name} (${i.quantity})`).join("\n")}`
     );
   }
-  return status === "granted";
-}
 
-/* ----------------------------------------------------------
-   ✅ Schedule AUTOMATIC daily notification at 8 AM with a fixed message
-   - This schedules a simple reminder notification every day at 8:00 AM.
-   - No database checks or dynamic content—just a fixed message.
----------------------------------------------------------- */
-export async function scheduleDailyReminder() {
-  // Cancel existing schedules
-  await Notifications.cancelAllScheduledNotificationsAsync();
-
-  // Check permissions first
-  const hasPermission = await requestNotificationPermissions();
-  if (!hasPermission) return;
-
-  try {
-    // Schedule a notification to appear every day at 8:00 AM with a fixed message
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "📦 Daily Reminder",
-        body: "Good morning! Check for expiring, low stock, or expired medicines.",
-      },
-      trigger: {
-        hour: 8,
-        minute: 0,
-        repeats: true,
-      },
-    });
-  } catch (error) {
-    console.error("Error scheduling daily reminder:", error);
-    Alert.alert("Error", "Failed to schedule daily notification.");
+  if (expiring.length) {
+    messageParts.push(
+      `🔴 EXPIRING SOON:\n${expiring
+        .map(i => `• ${i.name} (${i.expiry_date})`)
+        .join("\n")}`
+    );
   }
-}
 
-/* ----------------------------------------------------------
-   ✅ Schedule notification for low stock (immediate alert)
-   - Schedules an immediate notification if stock is low.
-   - Returns the notification ID for storage/cancellation.
----------------------------------------------------------- */
-export async function scheduleNotificationForLowStock(stockId, medName, quantity) {
-  try {
-    const notificationId = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "🔔 Low Stock Alert",
-        body: `${medName} is low in stock (Quantity: ${quantity}). Please replenish.`,
-      },
-      trigger: null, // Immediate
-    });
-    return notificationId; // Return ID to store in DB
-  } catch (error) {
-    console.error("Error scheduling low stock notification:", error);
-    return null; // Return null if failed, so DB can handle it
+  if (expired.length) {
+    messageParts.push(
+      `⚫ EXPIRED:\n${expired
+        .map(i => `• ${i.name} (${i.expiry_date})`)
+        .join("\n")}`
+    );
   }
-}
 
-/* ----------------------------------------------------------
-   ✅ Schedule notification for expiry (alert X days before expiry)
-   - Schedules a notification to appear X days before the expiry date.
-   - Returns the notification ID for storage/cancellation.
----------------------------------------------------------- */
-export async function scheduleNotificationForExpiry(stockId, medName, expiryDate, daysBefore) {
-  try {
-    const expiry = new Date(expiryDate);
-    const alertDate = new Date(expiry.getTime() - daysBefore * 24 * 60 * 60 * 1000); // X days before
+  console.log("Scheduling notification...");  // Debug: Before scheduling
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "📦 Daily Inventory Alert",
+      body: messageParts.join("\n\n"),
+      sound: "default",
+    },
+    trigger: null, // immediate (on app open)
+  });
+  console.log("Notification scheduled successfully");  // Debug: After scheduling
 
-    // Only schedule if the alert date is in the future
-    if (alertDate <= new Date()) {
-      console.warn(`Expiry alert for ${medName} is in the past or too soon—skipping.`);
-      return null;
-    }
-
-    const notificationId = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "⏳ Expiry Alert",
-        body: `${medName} expires on ${expiryDate}. Check and replace soon.`,
-      },
-      trigger: {
-        date: alertDate, // Schedule for the calculated date
-      },
-    });
-    return notificationId; // Return ID to store in DB
-  } catch (error) {
-    console.error("Error scheduling expiry notification:", error);
-    return null; // Return null if failed
-  }
-}
-
-/* ----------------------------------------------------------
-   ✅ Reads DB and notifies user (low stock, expiry) - for manual checks
----------------------------------------------------------- */
-export async function runInventoryCheck() {
-  // ... (unchanged from previous versions)
+  await markNotifiedToday();
 }

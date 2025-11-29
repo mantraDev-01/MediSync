@@ -12,11 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { addStock, updateStock, getStockByNameAndExpiry } from "../db"; // Added getStockByNameAndExpiry
-import {
-  scheduleNotificationForExpiry,
-  scheduleNotificationForLowStock,
-} from "../notifications";
+import { addStock, updateStock, getStockByNameAndExpiry } from "../db";
 
 export default function StockEntry({ navigation, route }) {
   const item = route?.params?.item || null;
@@ -47,8 +43,7 @@ export default function StockEntry({ navigation, route }) {
     (date) => {
       hideDatePicker();
       setTimeout(() => {
-        const formatted = date.toISOString().split("T")[0];
-        setExpiry(formatted);
+        setExpiry(date.toISOString().split("T")[0]);
       }, 200);
     },
     [hideDatePicker]
@@ -60,66 +55,46 @@ export default function StockEntry({ navigation, route }) {
       return;
     }
 
-    const qty = parseInt(quantity || "0", 10);
+    const qty = parseInt(quantity, 10);
     if (qty <= 0) {
       Alert.alert("Validation", "Quantity must be greater than 0.");
       return;
     }
 
-    const low = parseInt(lowThreshold || "10", 10);
+    const low = parseInt(lowThreshold, 10);
 
     try {
       if (item) {
-        // Editing existing item - update as before
         await updateStock(item.id, {
           name: name.trim(),
           quantity: qty,
           low_threshold: low,
           expiry_date: expiry || null,
         });
-        Alert.alert("Updated", "Stock details updated successfully.");
       } else {
-        // Adding new item - check for existing stock
-        const existingStock = await getStockByNameAndExpiry(name.trim(), expiry || null);
+        const existing = await getStockByNameAndExpiry(
+          name.trim(),
+          expiry || null
+        );
 
-        if (existingStock) {
-          // Same name and expiry exists - add quantity to existing stock
-          const newQuantity = existingStock.quantity + qty;
-          await updateStock(existingStock.id, { quantity: newQuantity });
-          Alert.alert("Updated", `Quantity added to existing stock. New total: ${newQuantity}.`);
+        if (existing) {
+          await updateStock(existing.id, {
+            quantity: existing.quantity + qty,
+          });
         } else {
-          // No match - add new stock item
-          const id = await addStock({
+          await addStock({
             name: name.trim(),
             quantity: qty,
             low_threshold: low,
             expiry_date: expiry || null,
           });
-
-          // Schedule notifications for new item
-          let notifLowId = null;
-          let notifExpiryId = null;
-
-          if (qty <= low) {
-            notifLowId = await scheduleNotificationForLowStock(id, name.trim(), qty);
-          }
-          if (expiry) {
-            notifExpiryId = await scheduleNotificationForExpiry(id, name.trim(), expiry, 30);
-          }
-
-          await updateStock(id, {
-            notif_low_id: notifLowId,
-            notif_expiry_id: notifExpiryId,
-          });
-
-          Alert.alert("Saved", "New stock added.");
         }
       }
 
+      Alert.alert("Success", "Medicine saved.");
       navigation.goBack();
-    } catch (err) {
-      console.warn(err);
-      Alert.alert("Error", "Failed to save: " + String(err));
+    } catch (e) {
+      Alert.alert("Error", String(e));
     }
   }
 
@@ -142,7 +117,7 @@ export default function StockEntry({ navigation, route }) {
               onChangeText={setName}
               style={styles.input}
               placeholder="Enter medicine name"
-              placeholderTextColor="#999"
+              placeholderTextColor="#7AA3A1"
             />
           </View>
 
@@ -158,6 +133,7 @@ export default function StockEntry({ navigation, route }) {
                 placeholder="0"
               />
             </View>
+
             <View style={{ flex: 1, marginLeft: 8 }}>
               <Text style={styles.label}>Low Threshold</Text>
               <TextInput
@@ -173,18 +149,12 @@ export default function StockEntry({ navigation, route }) {
           {/* Expiry Date */}
           <View style={styles.field}>
             <Text style={styles.label}>Expiry Date</Text>
-            <View style={styles.dateInput}>
-              <TextInput
-                style={[styles.input, { flex: 1, borderWidth: 0, paddingVertical: 0 }]}
-                value={expiry}
-                placeholder="Select expiry date"
-                placeholderTextColor="#999"
-                editable={false}
-              />
-              <TouchableOpacity onPress={showDatePicker}>
-                <Ionicons name="calendar-outline" size={26} color="#0057b7" />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={styles.dateInput} onPress={showDatePicker}>
+              <Text style={styles.dateText}>
+                {expiry || "Select expiry date"}
+              </Text>
+              <Ionicons name="calendar-outline" size={28} color="#35A9FF" />
+            </TouchableOpacity>
           </View>
 
           <DateTimePickerModal
@@ -195,21 +165,19 @@ export default function StockEntry({ navigation, route }) {
             onCancel={hideDatePicker}
           />
 
-          {/* Date Added (read-only) */}
+          {/* Date Added */}
           <View style={styles.field}>
             <Text style={styles.label}>Date Added</Text>
             <TextInput
               value={dateAdded}
               editable={false}
-              style={[styles.input, { color: "#666" }]}
+              style={[styles.input, { color: "#777" }]}
             />
           </View>
 
           {/* Save Button */}
-          <TouchableOpacity style={styles.button} onPress={onSave}>
-            <Text style={styles.buttonText}>
-              {item ? "💾 Update Stock" : "💾 Save Stock"}
-            </Text>
+          <TouchableOpacity style={styles.saveBtn} onPress={onSave}>
+            <Text style={styles.saveText}>{item ? "Update" : "Save"}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -217,65 +185,87 @@ export default function StockEntry({ navigation, route }) {
   );
 }
 
+const MEDI_PRIMARY = "#35A9FF";
+const MEDI_BG = "#E6F9F7";
+const MEDI_TEXT = "#1A3C47";
+const INPUT_BG = "#F3FBFA";
+
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    backgroundColor: "#f2f5f9",
+    padding: 18,
+    backgroundColor: MEDI_BG,
     flexGrow: 1,
   },
+
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: "#FFFFFF",
     borderRadius: 14,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#D3F0EA",
     elevation: 3,
   },
+
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
-    marginBottom: 22,
-    color: "#0057b7",
+    color: MEDI_TEXT,
+    marginBottom: 16,
     textAlign: "center",
   },
+
+  field: {
+    marginBottom: 14,
+  },
+
   label: {
     fontSize: 14,
-    fontWeight: "600",
+    color: MEDI_TEXT,
     marginBottom: 6,
-    color: "#333",
   },
+
   input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
+    backgroundColor: INPUT_BG,
+    padding: 12,
     borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: "#fafafa",
-    fontSize: 15,
-    color: "#000",
+    fontSize: 14,
+    color: MEDI_TEXT,
+    borderWidth: 1,
+    borderColor: "#CFEDEA",
   },
+
+  row: {
+    flexDirection: "row",
+  },
+
   dateInput: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ddd",
+    backgroundColor: INPUT_BG,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
     borderRadius: 10,
-    paddingHorizontal: 10,
-    backgroundColor: "#fafafa",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#CFEDEA",
   },
-  field: { marginBottom: 16 },
-  row: { flexDirection: "row", marginBottom: 16 },
-  button: {
-    backgroundColor: "#0057b7",
+
+  dateText: {
+    fontSize: 14,
+    color: MEDI_TEXT,
+  },
+
+  saveBtn: {
+    backgroundColor: MEDI_PRIMARY,
     paddingVertical: 14,
     borderRadius: 10,
     marginTop: 10,
   },
-  buttonText: {
-    color: "#fff",
+
+  saveText: {
     textAlign: "center",
-    fontWeight: "600",
+    color: "white",
+    fontWeight: "700",
     fontSize: 16,
   },
 });

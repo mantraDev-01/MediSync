@@ -8,7 +8,10 @@
     "newArchEnabled": true,
 
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"] 
+      }
     },
 
     "android": {
@@ -16,14 +19,21 @@
         "foregroundImage": "./assets/Msync.png",
         "backgroundColor": "#ffffff"
       },
-   	  "permissions": [
+
+      "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO",
-        "android.permission.READ_MEDIA_AUDIO"
+        "android.permission.READ_MEDIA_AUDIO",
+        "NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",  
+        "android.permission.USE_EXACT_ALARM"      
       ],
+
+      "useNextNotificationsApi": true,
       "edgeToEdgeEnabled": true,
+
       "package": "com.rojvillacampa.medisync"
     },
 
@@ -31,7 +41,17 @@
       "favicon": "./assets/favicon.png"
     },
 
-    "plugins": ["expo-sqlite"],
+    "plugins": [
+      "expo-sqlite",
+      "expo-notifications"
+    ],
+
+    "notification": {  
+      "icon": "./assets/Msync.png", 
+      "color": "#30C9B0", 
+      "defaultChannel": "default",
+      "iosDisplayInForeground": true
+    },
 
     "extra": {
       "eas": {

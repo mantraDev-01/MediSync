@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { getAllStocks, addDispensed, getDispensedByDate } from "../db";
+import { getAllStocks, addDispensed, getDispensedByDateRange } from "../db";
 
 export default function DispenseScreen() {
   const [stocks, setStocks] = useState([]);
@@ -27,25 +27,29 @@ export default function DispenseScreen() {
     new Date().toISOString().split("T")[0]
   );
 
-  const [filterDate, setFilterDate] = useState(
+  const [startDate, setStartDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [endDate, setEndDate] = useState(
     new Date().toISOString().split("T")[0]
   );
 
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-  const [isFilterPickerVisible, setFilterPickerVisibility] = useState(false);
+  const [isStartPickerVisible, setStartPickerVisibility] = useState(false);
+  const [isEndPickerVisible, setEndPickerVisibility] = useState(false);
 
   useEffect(() => {
     loadStocks();
-    loadDispensed(filterDate);
-  }, [filterDate]);
+    loadDispensed(startDate, endDate);
+  }, [startDate, endDate]);
 
   async function loadStocks() {
     const data = await getAllStocks();
     setStocks(data);
   }
 
-  async function loadDispensed(date) {
-    const data = await getDispensedByDate(date);
+  async function loadDispensed(start, end) {
+    const data = await getDispensedByDateRange(start, end);
     setDispensed(data);
   }
 
@@ -61,16 +65,28 @@ export default function DispenseScreen() {
     setDateDispensed(formatted);
   }
 
-  function showFilterPicker() {
-    setFilterPickerVisibility(true);
+  function showStartPicker() {
+    setStartPickerVisibility(true);
   }
-  function hideFilterPicker() {
-    setFilterPickerVisibility(false);
+  function hideStartPicker() {
+    setStartPickerVisibility(false);
   }
-  function handleFilterConfirm(date) {
-    hideFilterPicker();
+  function handleStartConfirm(date) {
+    hideStartPicker();
     const formatted = date.toISOString().split("T")[0];
-    setFilterDate(formatted);
+    setStartDate(formatted);
+  }
+
+  function showEndPicker() {
+    setEndPickerVisibility(true);
+  }
+  function hideEndPicker() {
+    setEndPickerVisibility(false);
+  }
+  function handleEndConfirm(date) {
+    hideEndPicker();
+    const formatted = date.toISOString().split("T")[0];
+    setEndDate(formatted);
   }
 
   useEffect(() => {
@@ -126,7 +142,7 @@ export default function DispenseScreen() {
       setSelectedMed("");
       setQuantity("");
       await loadStocks();
-      await loadDispensed(filterDate);
+      await loadDispensed(startDate, endDate);
     } catch (err) {
       console.warn(err);
       Alert.alert("Error", "Failed to save record.");
@@ -232,21 +248,36 @@ export default function DispenseScreen() {
       </TouchableOpacity>
 
       {/* === Dispensed Table === */}
-      <View style={{ marginTop: 40, marginBottom: 100 }}>
+      <View style={{ marginTop: 40, marginBottom: 100, }}>
         <View style={styles.filterHeader}>
           <Text style={styles.sectionTitle}>📜 Dispensed Records</Text>
-          <TouchableOpacity style={styles.filterButton} onPress={showFilterPicker}>
-            <Ionicons name="calendar-outline" size={20} color="#fff" />
-            <Text style={styles.filterButtonText}> {filterDate}</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
+            <TouchableOpacity style={styles.filterButton} onPress={showStartPicker}>
+              <Ionicons name="calendar-outline" size={20} color="#fff" />
+              <Text style={styles.filterButtonText}> {startDate}</Text>
+            </TouchableOpacity>
+            <Text style={{ marginHorizontal: 10, color: "#333" }}>to</Text>
+            <TouchableOpacity style={styles.filterButton} onPress={showEndPicker}>
+              <Ionicons name="calendar-outline" size={20} color="#fff" />
+              <Text style={styles.filterButtonText}> {endDate}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <DateTimePickerModal
-          isVisible={isFilterPickerVisible}
+          isVisible={isStartPickerVisible}
           mode="date"
           display={Platform.OS === "ios" ? "spinner" : "calendar"}
-          onConfirm={handleFilterConfirm}
-          onCancel={hideFilterPicker}
+          onConfirm={handleStartConfirm}
+          onCancel={hideStartPicker}
+        />
+
+        <DateTimePickerModal
+          isVisible={isEndPickerVisible}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "calendar"}
+          onConfirm={handleEndConfirm}
+          onCancel={hideEndPicker}
         />
 
         <ScrollView horizontal showsHorizontalScrollIndicator={true}>
@@ -263,7 +294,7 @@ export default function DispenseScreen() {
 
             {dispensed.length === 0 ? (
               <Text style={{ textAlign: "center", margin: 10, color: "#666" }}>
-                No dispensed records found for this date.
+                No dispensed records found for this date range.
               </Text>
             ) : (
               dispensed.map((item, index) => (
@@ -292,14 +323,16 @@ export default function DispenseScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f4f7fb" },
+  container: { flex: 1, backgroundColor: "#F3FBFA" },
+
   title: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#0057b7",
+    color: "#00A884",
     textAlign: "center",
     marginBottom: 16,
   },
+
   label: {
     fontSize: 14,
     fontWeight: "600",
@@ -307,70 +340,85 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     color: "#333",
   },
+
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#DADADA",
     borderRadius: 8,
     padding: 10,
     backgroundColor: "#fff",
     color: "#000",
-   
   },
+
   dropdown: {
     backgroundColor: "#fff",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#DADADA",
     padding: 6,
   },
+
   option: {
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 6,
     marginVertical: 2,
   },
-  selectedOption: { backgroundColor: "#0057b7" },
+
+  // selected item (was blue)
+  selectedOption: { backgroundColor: "#00A884" },
+
   dateRow: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#DADADA",
     borderRadius: 8,
     paddingHorizontal: 10,
     backgroundColor: "#fff",
   },
+
+  // Save button (was blue)
   button: {
-    backgroundColor: "#0057b7",
+    backgroundColor: "#00A884",
     paddingVertical: 14,
     borderRadius: 10,
     marginTop: 16,
   },
+
   buttonText: {
     color: "#fff",
     textAlign: "center",
     fontWeight: "600",
     fontSize: 16,
   },
+
   filterHeader: {
-    flexDirection: "row",
+    flexDirection: "col",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 8,
+    marginBottom: 20,
   },
+
+  // section title (was blue)
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#0057b7",
+    color: "#00A884",
   },
+
+  // filter button (was blue)
   filterButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0057b7",
+    backgroundColor: "#00A884",
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
+
   filterButtonText: { color: "#fff", fontWeight: "600" },
+
   table: {
     borderWidth: 1,
     borderColor: "#ccc",
@@ -378,6 +426,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     minWidth: 900,
   },
+
   tableRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -385,17 +434,21 @@ const styles = StyleSheet.create({
     borderColor: "#eee",
     paddingVertical: 8,
   },
+
+  // table header (was blue)
   tableHeader: {
-    backgroundColor: "#0057b7",
+    backgroundColor: "#00A884",
     borderTopLeftRadius: 10,
     borderTopRightRadius: 10,
   },
+
   th: {
     fontWeight: "700",
     fontSize: 13,
     color: "#fff",
     textAlign: "center",
   },
+
   td: {
     fontSize: 13,
     color: "#333",
